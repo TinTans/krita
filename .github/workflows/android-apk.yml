@@ -73,7 +73,15 @@ jobs:
 
       - name: Install host packages
         run: |
+          # The host tools in KDE's prebuilt deps (qmlimportscanner etc.) are
+          # built with GCC 13+ and rely on the libstdc++ shipped with it to
+          # initialize std::cout; with Ubuntu 22.04's stock libstdc++ they
+          # segfault on the first write, so pull a newer one from the
+          # toolchain PPA
+          sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
           sudo apt-get update
+          sudo apt-get install -y --only-upgrade libstdc++6
+          strings /usr/lib/x86_64-linux-gnu/libstdc++.so.6 | grep -E '^GLIBCXX_3\.4\.3[0-9]$' | tail -1
           sudo apt-get install -y --no-install-recommends \
             ninja-build ccache gettext python3-venv python3-dev \
             build-essential pkg-config patchelf unzip
