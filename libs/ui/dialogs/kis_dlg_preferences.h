@@ -257,6 +257,8 @@ public:
 
 private Q_SLOTS:
     void slotTabletTest();
+    void slotCalibrateTabletOffset();
+    void slotResetTabletOffset();
     void slotResolutionSettings();
 
 public:

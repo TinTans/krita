@@ -1744,6 +1744,22 @@ void KisConfig::setUseIgnoreHistoricTabletEventsWorkaround(bool value)
     KisConfigNotifier::instance()->notifyUseIgnoreHistoricTabletEventsWorkaroundChanged(value);
 }
 
+QPointF KisConfig::tabletPositionOffset(bool defaultValue) const
+{
+    if (defaultValue) {
+        return QPointF();
+    } else {
+        return QPointF(m_cfg.readEntry("tabletPositionOffsetX", 0.0),
+                       m_cfg.readEntry("tabletPositionOffsetY", 0.0));
+    }
+}
+
+void KisConfig::setTabletPositionOffset(const QPointF &offset)
+{
+    m_cfg.writeEntry("tabletPositionOffsetX", offset.x());
+    m_cfg.writeEntry("tabletPositionOffsetY", offset.y());
+}
+
 qreal KisConfig::androidScalingLastInitialScale(bool defaultValue) const
 {
     if (defaultValue) {

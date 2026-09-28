@@ -11,6 +11,7 @@
 #include <QList>
 #include <QColor>
 #include <QObject>
+#include <QPointF>
 
 #include <ksharedconfig.h>
 #include <kconfiggroup.h>
@@ -462,6 +463,15 @@ public:
 
     bool useIgnoreHistoricTabletEventsWorkaround(bool defaultValue = false) const;
     void setUseIgnoreHistoricTabletEventsWorkaround(bool value);
+
+    /**
+     * Offset (in logical pixels) added to the position of every stylus
+     * event on the canvas. Used to compensate for pen displays where
+     * the reported nib position does not match what is under the tip
+     * (e.g. due to parallax or a miscalibrated digitizer).
+     */
+    QPointF tabletPositionOffset(bool defaultValue = false) const;
+    void setTabletPositionOffset(const QPointF &offset);
 
     qreal androidScalingLastInitialScale(bool defaultValue = false) const;
     void setAndroidScalingLastInitialScale(qreal value);

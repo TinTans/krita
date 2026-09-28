@@ -249,6 +249,110 @@
     </widget>
    </item>
    <item>
+    <widget class="QGroupBox" name="grpTabletOffset">
+     <property name="toolTip">
+      <string>Shifts the position of the stylus on the canvas. Use this if the brush does not appear exactly under the tip of the stylus on a pen display.</string>
+     </property>
+     <property name="title">
+      <string>Stylus Position Offset</string>
+     </property>
+     <layout class="QFormLayout" name="formLayoutTabletOffset">
+      <item row="0" column="0">
+       <widget class="QLabel" name="lblTabletOffsetX">
+        <property name="text">
+         <string>Horizontal:</string>
+        </property>
+        <property name="buddy">
+         <cstring>dblTabletOffsetX</cstring>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="QDoubleSpinBox" name="dblTabletOffsetX">
+        <property name="suffix">
+         <string> px</string>
+        </property>
+        <property name="decimals">
+         <number>1</number>
+        </property>
+        <property name="minimum">
+         <double>-500.000000000000000</double>
+        </property>
+        <property name="maximum">
+         <double>500.000000000000000</double>
+        </property>
+        <property name="singleStep">
+         <double>0.500000000000000</double>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="0">
+       <widget class="QLabel" name="lblTabletOffsetY">
+        <property name="text">
+         <string>Vertical:</string>
+        </property>
+        <property name="buddy">
+         <cstring>dblTabletOffsetY</cstring>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <widget class="QDoubleSpinBox" name="dblTabletOffsetY">
+        <property name="suffix">
+         <string> px</string>
+        </property>
+        <property name="decimals">
+         <number>1</number>
+        </property>
+        <property name="minimum">
+         <double>-500.000000000000000</double>
+        </property>
+        <property name="maximum">
+         <double>500.000000000000000</double>
+        </property>
+        <property name="singleStep">
+         <double>0.500000000000000</double>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="1">
+       <layout class="QHBoxLayout" name="horizontalLayoutTabletOffset">
+        <item>
+         <widget class="QPushButton" name="btnCalibrateTabletOffset">
+          <property name="toolTip">
+           <string>Measure the offset by tapping a few targets with the stylus</string>
+          </property>
+          <property name="text">
+           <string>Calibrate...</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="btnResetTabletOffset">
+          <property name="text">
+           <string>Reset</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <spacer name="horizontalSpacerTabletOffset">
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>40</width>
+            <height>20</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+       </layout>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
     <widget class="QPushButton" name="btnTabletTest">
      <property name="text">
       <string>Open Tablet Tester...</string>

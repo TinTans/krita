@@ -110,6 +110,9 @@ public:
     };
 
     KisSharedPtr<TabletLatencyTracker> tabletLatencyTracker;
+
+    // user-configured correction added to the position of stylus events
+    QPointF tabletPositionOffset;
 #ifdef Q_OS_WIN
     bool ignoreHighFunctionKeys = false;
 #endif

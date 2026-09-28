@@ -8,6 +8,7 @@
  */
 
 #include "kis_dlg_preferences.h"
+#include "KisDlgTabletOffsetCalibration.h"
 
 #include <config-hdr.h>
 #include <opengl/kis_opengl.h>
@@ -1775,6 +1776,7 @@ void TabletSettingsTab::setDefault()
     m_page->intMaxAllowedBrushSpeed->setValue(30);
     m_page->intBrushSpeedSmoothing->setValue(3);
     m_page->tiltDirectionOffsetAngle->setAngle(0);
+    slotResetTabletOffset();
 }
 
 TabletSettingsTab::TabletSettingsTab(QWidget* parent, const char* name): QWidget(parent)
@@ -1865,12 +1867,34 @@ TabletSettingsTab::TabletSettingsTab(QWidget* parent, const char* name): QWidget
     m_page->tiltDirectionOffsetAngle->setAngle(-cfg.readEntry("tiltDirectionOffset", 0.0));
     m_page->tiltDirectionOffsetAngle->setPrefix(i18n("Pen tilt direction offset: "));
     m_page->tiltDirectionOffsetAngle->setFlipOptionsMode(KisAngleSelector::FlipOptionsMode_MenuButton);
+
+    const QPointF tabletOffset = cfg.tabletPositionOffset();
+    m_page->dblTabletOffsetX->setValue(tabletOffset.x());
+    m_page->dblTabletOffsetY->setValue(tabletOffset.y());
+    connect(m_page->btnCalibrateTabletOffset, SIGNAL(clicked()), SLOT(slotCalibrateTabletOffset()));
+    connect(m_page->btnResetTabletOffset, SIGNAL(clicked()), SLOT(slotResetTabletOffset()));
 }
 
 void TabletSettingsTab::slotTabletTest()
 {
     TabletTestDialog tabletTestDialog(this);
     tabletTestDialog.exec();
+}
+
+void TabletSettingsTab::slotCalibrateTabletOffset()
+{
+    KisDlgTabletOffsetCalibration dlg(this);
+    if (dlg.exec() == QDialog::Accepted) {
+        m_page->dblTabletOffsetX->setValue(dlg.offset().x());
+        m_page->dblTabletOffsetY->setValue(dlg.offset().y());
+    }
+}
+
+void TabletSettingsTab::slotResetTabletOffset()
+{
+    const QPointF defaultOffset = KisConfig(true).tabletPositionOffset(true);
+    m_page->dblTabletOffsetX->setValue(defaultOffset.x());
+    m_page->dblTabletOffsetY->setValue(defaultOffset.y());
 }
 
 #ifdef Q_OS_WIN
@@ -3214,6 +3238,8 @@ bool KisDlgPreferences::editPreferences(std::optional<PageDesc>page)
         cfg.writeEntry<int>("speedValueSmoothing", m_tabletSettings->m_page->intBrushSpeedSmoothing->value());
         // the angle is saved in clockwise direction to be consistent with Drawing Angle, so negate
         cfg.writeEntry<int>("tiltDirectionOffset", -m_tabletSettings->m_page->tiltDirectionOffsetAngle->angle());
+        cfg.setTabletPositionOffset(QPointF(m_tabletSettings->m_page->dblTabletOffsetX->value(),
+                                            m_tabletSettings->m_page->dblTabletOffsetY->value()));
 
         m_performanceSettings->save();
 
