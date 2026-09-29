@@ -161,6 +161,8 @@ jobs:
         run: |
           mkdir -p ~/.android
           cp krita/.github/ci/debug.keystore ~/.android/debug.keystore
+          # used explicitly by packaging/android/apk/build.gradle
+          echo "KRITA_DEBUG_KEYSTORE=$GITHUB_WORKSPACE/krita/.github/ci/debug.keystore" >> "$GITHUB_ENV"
 
       - name: Package APK
         working-directory: krita
@@ -187,8 +189,16 @@ jobs:
       - name: Verify APK signature
         run: |
           APK=$(ls /mnt/wd/krita/_packaging/*.apk | head -1)
-          "$ANDROID_HOME/build-tools/${ANDROID_BUILD_TOOLS_VERSION}/apksigner" verify --verbose --print-certs "$APK"
+          "$ANDROID_HOME/build-tools/${ANDROID_BUILD_TOOLS_VERSION}/apksigner" verify --verbose --print-certs "$APK" | tee apksigner.txt
           sha256sum "$APK"
+          # the APK must be signed with the fixed key, or it can't be
+          # installed over previous builds
+          EXPECTED=$(keytool -list -v -keystore krita/.github/ci/debug.keystore -storepass android \
+                     | grep 'SHA256:' | head -1 | sed 's/.*SHA256: *//' | tr -d ':' | tr 'A-F' 'a-f')
+          ACTUAL=$(grep -m1 'certificate SHA-256 digest' apksigner.txt | sed 's/.*digest: *//')
+          echo "expected certificate: $EXPECTED"
+          echo "actual certificate:   $ACTUAL"
+          test -n "$EXPECTED" && test "$EXPECTED" = "$ACTUAL"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
