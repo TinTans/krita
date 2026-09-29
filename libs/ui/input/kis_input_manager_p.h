@@ -112,8 +112,10 @@ public:
 
     KisSharedPtr<TabletLatencyTracker> tabletLatencyTracker;
 
-    // user-configured correction added to the position of stylus events
+    // user-configured correction added to the position of stylus events,
+    // loaded for the screen orientation in tabletCorrectionOrientation
     KisTabletPositionCorrection tabletPositionCorrection;
+    int tabletCorrectionOrientation = -1;
 #ifdef Q_OS_WIN
     bool ignoreHighFunctionKeys = false;
 #endif

@@ -1890,15 +1890,21 @@ void TabletSettingsTab::updateTabletTiltInfo()
 {
     const bool hasModel = m_tabletCorrection.hasTiltModel();
     m_page->chkTabletTiltCompensation->setEnabled(hasModel);
+
+    QString text;
     if (!hasModel) {
         m_page->chkTabletTiltCompensation->setChecked(false);
-        m_page->lblTabletTiltInfo->setText(
-            i18n("Run the calibration to measure how tilting the stylus moves the detected point."));
+        text = i18n("Run the calibration to measure how tilting the stylus moves the detected point.");
     } else {
-        m_page->lblTabletTiltInfo->setText(
-            i18n("Measured position sensor distance from the nib: %1 px",
-                 QString::number(m_tabletCorrection.sensorDistance(), 'f', 1)));
+        text = i18n("Measured position sensor distance from the nib: %1 px",
+                    QString::number(m_tabletCorrection.sensorDistance(), 'f', 1));
     }
+
+    text += "\n" + i18n("These settings are saved for the current screen orientation (%1).",
+                        KisTabletPositionCorrection::screenOrientationName(
+                            KisTabletPositionCorrection::currentScreenOrientation()));
+
+    m_page->lblTabletTiltInfo->setText(text);
 }
 
 void TabletSettingsTab::slotTabletTest()
@@ -1913,16 +1919,25 @@ void TabletSettingsTab::slotCalibrateTabletOffset()
 {
     KisDlgTabletOffsetCalibration dlg(this);
     if (dlg.exec() == QDialog::Accepted) {
+        const KisTabletPositionCorrection::FitInfo info = dlg.fitInfo();
+
         m_tabletCorrection = dlg.correction();
         m_page->dblTabletOffsetX->setValue(m_tabletCorrection.offset().x());
         m_page->dblTabletOffsetY->setValue(m_tabletCorrection.offset().y());
         updateTabletTiltInfo();
-        m_page->chkTabletTiltCompensation->setChecked(dlg.tiltMeasured());
+        m_page->chkTabletTiltCompensation->setChecked(info.tiltFitted);
 
-        if (!dlg.tiltMeasured()) {
-            m_page->lblTabletTiltInfo->setText(
-                i18n("The stylus did not report enough tilt, so only a fixed offset was measured."));
+        // add details about the calibration, to help diagnose problems
+        QString details;
+        if (info.tiltFitted) {
+            details = i18n("Calibration error: %1 px", QString::number(info.rmsError, 'f', 1));
+        } else {
+            details = i18n("The tilt barely changed during the calibration, so only a fixed offset was measured "
+                           "(reported tilt X: %1° to %2°, Y: %3° to %4°).",
+                           qRound(info.minTilt.x()), qRound(info.maxTilt.x()),
+                           qRound(info.minTilt.y()), qRound(info.maxTilt.y()));
         }
+        m_page->lblTabletTiltInfo->setText(m_page->lblTabletTiltInfo->text() + "\n" + details);
     }
 }
 

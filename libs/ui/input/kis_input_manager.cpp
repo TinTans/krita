@@ -162,7 +162,8 @@ void KisInputManager::deregisterPopupWidget()
 
 void KisInputManager::slotConfigChanged()
 {
-    d->tabletPositionCorrection = KisTabletPositionCorrection::fromConfig();
+    // reloaded (for the current screen orientation) on the next tablet event
+    d->tabletCorrectionOrientation = -1;
 
 #ifdef Q_OS_WIN
     d->ignoreHighFunctionKeys = KisConfig(true).ignoreHighFunctionKeys();
@@ -226,6 +227,18 @@ void KisInputManager::setupAsEventFilter(QObject *receiver)
 bool KisInputManager::eventFilter(QObject* object, QEvent* event)
 {
     if (object != d->eventsReceiver) return false;
+
+    if (event->type() == QEvent::TabletPress ||
+        event->type() == QEvent::TabletMove ||
+        event->type() == QEvent::TabletRelease) {
+
+        // the correction is calibrated separately for each screen orientation
+        const int orientation = KisTabletPositionCorrection::currentScreenOrientation();
+        if (orientation != d->tabletCorrectionOrientation) {
+            d->tabletPositionCorrection = KisTabletPositionCorrection::fromConfig(false, orientation);
+            d->tabletCorrectionOrientation = orientation;
+        }
+    }
 
     if (!d->tabletPositionCorrection.isNull() &&
         (event->type() == QEvent::TabletPress ||

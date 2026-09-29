@@ -37,8 +37,8 @@ public:
     /// the measured correction, valid only after the dialog was accepted
     KisTabletPositionCorrection correction() const;
 
-    /// true if the stylus reported enough tilt to measure the tilt model
-    bool tiltMeasured() const;
+    /// details about the fit: whether tilt could be measured, the error etc.
+    KisTabletPositionCorrection::FitInfo fitInfo() const;
 
 protected:
     void paintEvent(QPaintEvent *event) override;
@@ -62,7 +62,7 @@ private:
     QVector<Step> m_steps;
     QVector<KisTabletPositionCorrection::Sample> m_samples;
     KisTabletPositionCorrection m_correction;
-    bool m_tiltMeasured {false};
+    KisTabletPositionCorrection::FitInfo m_fitInfo;
     bool m_tiltReported {false};
     QPointF m_currentTilt;
     QString m_message;

@@ -8,6 +8,7 @@
 #define KISTABLETPOSITIONCORRECTION_H
 
 #include <QPointF>
+#include <QString>
 #include <QVector>
 
 #include "kritaui_export.h"
@@ -18,18 +19,28 @@ class KisConfig;
  * Correction applied to the position of stylus events so that the
  * reported point matches the actual position of the nib.
  *
- * The position sensor of a stylus sits some distance up the barrel,
+ * The position sensor of a stylus sits some distance d up the barrel,
  * so when the pen is tilted, the detected point moves away from the nib
- * towards the top of the pen. The correction is modelled as
+ * towards the top of the pen by d * sin(tilt angle), in the direction the
+ * pen is leaning. The correction is modelled as
  *
  *     correction = offset + M * t
  *
  * where `offset` is a constant shift (parallax, digitizer misalignment)
- * and `t` is the projection of the pen axis onto the screen:
- * sin(tilt angle) in the direction the pen is leaning. For an ideal pen
- * M = -d * I, where d is the distance between the nib and the sensor,
- * but M is a full 2x2 matrix so that it also absorbs whatever sign,
- * axis and scale conventions the platform uses for reporting tilt.
+ * and `t` is the projection of the pen axis onto the screen: sin(tilt
+ * angle) in the direction the pen is leaning, as reported by the tilt
+ * axes.
+ *
+ * M = d * R(theta) is the sensor distance combined with a rotation, which
+ * absorbs any mismatch between the directions of the platform's tilt axes
+ * and the screen axes (possibly with a mirror, if one of the tilt axes is
+ * flipped). Because it has only two degrees of freedom it can be measured
+ * even if the tilt only varied along a single direction during the
+ * calibration, and it then works for any direction of tilt.
+ *
+ * The correction is stored separately for every screen orientation, with
+ * the most recently saved one used for orientations that were never
+ * calibrated.
  *
  * All values are in logical pixels.
  */
@@ -42,20 +53,39 @@ public:
         qreal yTilt {0.0};
     };
 
+    struct FitInfo {
+        bool tiltFitted {false};
+        bool mirrored {false};
+        qreal rmsError {0.0};   ///< remaining error of the fitted model, in pixels
+        QPointF minTilt;        ///< range of the reported tilt, in degrees
+        QPointF maxTilt;
+    };
+
 public:
     KisTabletPositionCorrection() = default;
 
-    /// loads the correction from Krita's configuration
-    static KisTabletPositionCorrection fromConfig(bool defaultValue = false);
-    void saveToConfig(KisConfig &cfg) const;
+    /**
+     * Loads the correction for the given screen orientation (by default,
+     * the current one of the primary screen) from Krita's configuration.
+     */
+    static KisTabletPositionCorrection fromConfig(bool defaultValue = false, int screenOrientation = -1);
+
+    /**
+     * Saves the correction for the given screen orientation (by default,
+     * the current one), and as the fallback for uncalibrated orientations.
+     */
+    void saveToConfig(KisConfig &cfg, int screenOrientation = -1) const;
+
+    /// the current orientation of the primary screen, as Qt::ScreenOrientation
+    static int currentScreenOrientation();
+    static QString screenOrientationName(int screenOrientation);
 
     /**
      * Least-squares fit of the correction to the calibration samples.
-     * If the samples don't contain enough variation of tilt (or the
-     * stylus doesn't report tilt at all), only the constant offset is
-     * fitted and \p tiltFitted is set to false.
+     * If the tilt barely changed during the calibration (or the stylus
+     * doesn't report tilt at all), only the constant offset is fitted.
      */
-    static KisTabletPositionCorrection fit(const QVector<Sample> &samples, bool *tiltFitted = nullptr);
+    static KisTabletPositionCorrection fit(const QVector<Sample> &samples, FitInfo *info = nullptr);
 
     /// projection of the pen axis onto the screen plane for the given tilt
     static QPointF tiltVector(qreal xTilt, qreal yTilt);

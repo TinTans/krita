@@ -69,9 +69,9 @@ KisTabletPositionCorrection KisDlgTabletOffsetCalibration::correction() const
     return m_correction;
 }
 
-bool KisDlgTabletOffsetCalibration::tiltMeasured() const
+KisTabletPositionCorrection::FitInfo KisDlgTabletOffsetCalibration::fitInfo() const
 {
-    return m_tiltMeasured;
+    return m_fitInfo;
 }
 
 QPointF KisDlgTabletOffsetCalibration::targetPosition(int index) const
@@ -164,7 +164,7 @@ void KisDlgTabletOffsetCalibration::tabletEvent(QTabletEvent *event)
     m_samples.append(sample);
 
     if (m_samples.size() == m_steps.size()) {
-        m_correction = KisTabletPositionCorrection::fit(m_samples, &m_tiltMeasured);
+        m_correction = KisTabletPositionCorrection::fit(m_samples, &m_fitInfo);
         accept();
         return;
     }
