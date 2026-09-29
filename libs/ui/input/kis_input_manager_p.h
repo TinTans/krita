@@ -20,6 +20,7 @@
 #include "kis_timed_signal_threshold.h"
 #include "kis_signal_auto_connection.h"
 #include "kis_latency_tracker.h"
+#include "KisTabletPositionCorrection.h"
 
 class KisToolInvocationAction;
 
@@ -112,7 +113,7 @@ public:
     KisSharedPtr<TabletLatencyTracker> tabletLatencyTracker;
 
     // user-configured correction added to the position of stylus events
-    QPointF tabletPositionOffset;
+    KisTabletPositionCorrection tabletPositionCorrection;
 #ifdef Q_OS_WIN
     bool ignoreHighFunctionKeys = false;
 #endif

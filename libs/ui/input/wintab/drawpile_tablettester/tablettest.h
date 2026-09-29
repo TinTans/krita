@@ -11,14 +11,15 @@
 
 #include <QWidget>
 #include <kis_speed_smoother.h>
+#include "input/KisTabletPositionCorrection.h"
 
 class TabletTester : public QWidget {
     Q_OBJECT
 public:
     TabletTester(QWidget *parent=nullptr);
 
-    /// offset added to the stylus position, same as the canvas does
-    void setPositionOffset(const QPointF &offset);
+    /// correction applied to the stylus position, same as the canvas does
+    void setPositionCorrection(const KisTabletPositionCorrection &correction);
 
 public Q_SLOTS:
     void clear();
@@ -41,7 +42,7 @@ private:
 
     bool m_mouseDown;
     bool m_tabletDown;
-    QPointF m_positionOffset;
+    KisTabletPositionCorrection m_positionCorrection;
     QPointF m_lastTabletPos;
     bool m_hasTabletPos {false};
     KisSpeedSmoother m_tabletSpeedSmoother;

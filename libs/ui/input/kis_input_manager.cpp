@@ -162,7 +162,7 @@ void KisInputManager::deregisterPopupWidget()
 
 void KisInputManager::slotConfigChanged()
 {
-    d->tabletPositionOffset = KisConfig(true).tabletPositionOffset();
+    d->tabletPositionCorrection = KisTabletPositionCorrection::fromConfig();
 
 #ifdef Q_OS_WIN
     d->ignoreHighFunctionKeys = KisConfig(true).ignoreHighFunctionKeys();
@@ -227,13 +227,18 @@ bool KisInputManager::eventFilter(QObject* object, QEvent* event)
 {
     if (object != d->eventsReceiver) return false;
 
-    if (!d->tabletPositionOffset.isNull() &&
+    if (!d->tabletPositionCorrection.isNull() &&
         (event->type() == QEvent::TabletPress ||
          event->type() == QEvent::TabletMove ||
          event->type() == QEvent::TabletRelease)) {
 
-        TabletEventPositionShifter::shift(static_cast<QTabletEvent*>(event),
-                                          d->tabletPositionOffset);
+        QTabletEvent *tabletEvent = static_cast<QTabletEvent*>(event);
+        const QPointF correction =
+            d->tabletPositionCorrection.correctionFor(tabletEvent->xTilt(), tabletEvent->yTilt());
+
+        if (!correction.isNull()) {
+            TabletEventPositionShifter::shift(tabletEvent, correction);
+        }
     }
 
     if (d->eventEater.eventFilter(object, event)) return false;

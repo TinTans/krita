@@ -11,18 +11,20 @@
 #include <QPointF>
 #include <QVector>
 
+#include "input/KisTabletPositionCorrection.h"
 #include "kritaui_export.h"
 
 class QPushButton;
 
 /**
  * A full-screen dialog that asks the user to tap a series of crosshairs
- * with the stylus and computes the average difference between where the
- * crosshairs are and where the tablet reported the taps. The result can
- * be used as KisConfig::tabletPositionOffset().
+ * with the stylus, holding it upright and leaning in different directions.
+ * From the difference between the crosshairs and the reported taps it
+ * fits a KisTabletPositionCorrection: a constant offset plus a tilt model
+ * describing how far the position sensor sits from the nib.
  *
  * The dialog receives raw (uncorrected) tablet events, so the currently
- * configured offset doesn't affect the measurement.
+ * configured correction doesn't affect the measurement.
  */
 class KRITAUI_EXPORT KisDlgTabletOffsetCalibration : public QDialog
 {
@@ -32,8 +34,11 @@ public:
     KisDlgTabletOffsetCalibration(QWidget *parent = nullptr);
     ~KisDlgTabletOffsetCalibration() override;
 
-    /// the measured offset, valid only after the dialog was accepted
-    QPointF offset() const;
+    /// the measured correction, valid only after the dialog was accepted
+    KisTabletPositionCorrection correction() const;
+
+    /// true if the stylus reported enough tilt to measure the tilt model
+    bool tiltMeasured() const;
 
 protected:
     void paintEvent(QPaintEvent *event) override;
@@ -44,13 +49,22 @@ private Q_SLOTS:
     void slotRestart();
 
 private:
+    struct Step {
+        QPointF relativeTarget;
+        QString instruction;
+        bool requiresLean;
+    };
+
     QPointF targetPosition(int index) const;
     void updateButtonsGeometry();
 
 private:
-    QVector<QPointF> m_relativeTargets;
-    QVector<QPointF> m_measuredDeltas;
-    QPointF m_offset;
+    QVector<Step> m_steps;
+    QVector<KisTabletPositionCorrection::Sample> m_samples;
+    KisTabletPositionCorrection m_correction;
+    bool m_tiltMeasured {false};
+    bool m_tiltReported {false};
+    QPointF m_currentTilt;
     QString m_message;
 
     QPushButton *m_btnRestart {nullptr};

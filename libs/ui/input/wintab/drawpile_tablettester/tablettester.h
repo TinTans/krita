@@ -9,6 +9,7 @@
 #define TABLETTESTDIALOG_H
 
 #include <KoDialog.h>
+#include "input/KisTabletPositionCorrection.h"
 
 class Ui_TabletTest;
 
@@ -16,7 +17,8 @@ class TabletTestDialog : public KoDialog
 {
     Q_OBJECT
 public:
-    TabletTestDialog(QWidget *parent=nullptr, const QPointF &positionOffset = QPointF());
+    TabletTestDialog(QWidget *parent=nullptr,
+                     const KisTabletPositionCorrection &positionCorrection = KisTabletPositionCorrection());
     ~TabletTestDialog();
     bool eventFilter(QObject *watched, QEvent *event) override;
 

@@ -316,6 +316,23 @@
        </widget>
       </item>
       <item row="2" column="1">
+       <widget class="QCheckBox" name="chkTabletTiltCompensation">
+        <property name="toolTip">
+         <string>The position sensor of a stylus sits some distance up the barrel, so the detected point moves when the stylus is tilted. When enabled, Krita moves the point back to the nib based on the tilt of the stylus. The amount is measured by the calibration.</string>
+        </property>
+        <property name="text">
+         <string>Compensate for stylus tilt</string>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="1">
+       <widget class="QLabel" name="lblTabletTiltInfo">
+        <property name="wordWrap">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="4" column="1">
        <layout class="QHBoxLayout" name="horizontalLayoutTabletOffset">
         <item>
          <widget class="QPushButton" name="btnCalibrateTabletOffset">
@@ -349,7 +366,7 @@
         </item>
        </layout>
       </item>
-      <item row="3" column="1">
+      <item row="5" column="1">
        <widget class="QPushButton" name="btnTabletTest">
         <property name="toolTip">
          <string>Try out the stylus with the offset entered above applied</string>

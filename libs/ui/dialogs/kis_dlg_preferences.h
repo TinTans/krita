@@ -32,6 +32,7 @@
 #include "ui_WdgPopupPaletteSettings.h"
 #include "KisShortcutsDialog.h"
 #include "KisCumulativeUndoData.h"
+#include "input/KisTabletPositionCorrection.h"
 
 class KoID;
 class KisInputConfigurationPage;
@@ -260,10 +261,20 @@ private Q_SLOTS:
     void slotCalibrateTabletOffset();
     void slotResetTabletOffset();
     void slotResolutionSettings();
+    void updateTabletTiltInfo();
 
 public:
     void setDefault();
+
+    /// the stylus position correction as currently set up in the page
+    KisTabletPositionCorrection currentTabletCorrection() const;
+
     WdgTabletSettings  *m_page;
+
+private:
+    // holds the tilt model measured by the calibration, the offset
+    // itself lives in the spin boxes
+    KisTabletPositionCorrection m_tabletCorrection;
 
 
 };

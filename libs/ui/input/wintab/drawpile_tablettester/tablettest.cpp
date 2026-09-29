@@ -19,9 +19,9 @@ TabletTester::TabletTester(QWidget *parent)
 
 }
 
-void TabletTester::setPositionOffset(const QPointF &offset)
+void TabletTester::setPositionCorrection(const KisTabletPositionCorrection &correction)
 {
-    m_positionOffset = offset;
+    m_positionCorrection = correction;
 }
 
 QSize TabletTester::sizeHint() const
@@ -134,10 +134,11 @@ void TabletTester::tabletEvent(QTabletEvent *e)
             break;
     }
 
+    const QPointF correction = m_positionCorrection.correctionFor(e->xTilt(), e->yTilt());
 #if (QT_VERSION < QT_VERSION_CHECK(6, 0, 0))
-    const QPointF pos = e->posF() + m_positionOffset;
+    const QPointF pos = e->posF() + correction;
 #else
-    const QPointF pos = e->position() + m_positionOffset;
+    const QPointF pos = e->position() + correction;
 #endif
 
     const qreal speed = m_tabletSpeedSmoother.getNextSpeed(pos, e->timestamp());

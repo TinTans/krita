@@ -12,7 +12,7 @@
 
 #include <QTabletEvent>
 
-TabletTestDialog::TabletTestDialog(QWidget *parent, const QPointF &positionOffset)
+TabletTestDialog::TabletTestDialog(QWidget *parent, const KisTabletPositionCorrection &positionCorrection)
     : KoDialog(parent, Qt::Dialog)
 {
     setCaption(i18n("Tablet Tester"));
@@ -24,7 +24,7 @@ TabletTestDialog::TabletTestDialog(QWidget *parent, const QPointF &positionOffse
     qApp->installEventFilter(this);
     // Hack to work around extreme lag w/ S Pen on Android. Unless the focus is set on the tablet tester itself, pen input will appear to lag.
     m_ui->tablettest->setFocus();
-    m_ui->tablettest->setPositionOffset(positionOffset);
+    m_ui->tablettest->setPositionCorrection(positionCorrection);
 
     m_ui->logView->appendPlainText(
                 "## Legend:\n"
@@ -35,11 +35,16 @@ TabletTestDialog::TabletTestDialog(QWidget *parent, const QPointF &positionOffse
                 "# S - speed\n"
                 "\n");
 
-    if (!positionOffset.isNull()) {
-        m_ui->logView->appendPlainText(
-                    QString("# Stylus position offset: X=%1 Y=%2 (applied to the coordinates)\n")
-                    .arg(positionOffset.x(), 0, 'f', 1)
-                    .arg(positionOffset.y(), 0, 'f', 1));
+    if (!positionCorrection.isNull()) {
+        QString msg = QString("# Stylus position offset: X=%1 Y=%2")
+                .arg(positionCorrection.offset().x(), 0, 'f', 1)
+                .arg(positionCorrection.offset().y(), 0, 'f', 1);
+        if (positionCorrection.tiltCompensationEnabled() && positionCorrection.hasTiltModel()) {
+            msg += QString(", tilt compensation: sensor %1 px from the nib")
+                    .arg(positionCorrection.sensorDistance(), 0, 'f', 1);
+        }
+        msg += " (applied to the coordinates)\n";
+        m_ui->logView->appendPlainText(msg);
     }
 }
 

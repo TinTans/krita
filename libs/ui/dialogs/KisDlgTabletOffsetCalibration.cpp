@@ -20,6 +20,17 @@ const qreal crosshairSize = 30.0;
 // taps further than this fraction of the smaller screen dimension from the
 // target are considered to be mistakes, not a calibration error
 const qreal maxAllowedDeviationPortion = 0.1;
+
+// tilt (in degrees) above which we consider that the stylus reports tilt
+const qreal tiltReportedThreshold = 3.0;
+
+// minimal tilt (in degrees) expected for the "lean the stylus" steps
+const qreal minLeanAngle = 15.0;
+
+qreal tiltAngle(const QPointF &tilt)
+{
+    return qSqrt(tilt.x() * tilt.x() + tilt.y() * tilt.y());
+}
 }
 
 KisDlgTabletOffsetCalibration::KisDlgTabletOffsetCalibration(QWidget *parent)
@@ -28,11 +39,17 @@ KisDlgTabletOffsetCalibration::KisDlgTabletOffsetCalibration(QWidget *parent)
     setWindowTitle(i18n("Stylus Position Calibration"));
     setWindowState(windowState() | Qt::WindowFullScreen);
 
-    m_relativeTargets << QPointF(0.5, 0.5)
-                      << QPointF(0.2, 0.2)
-                      << QPointF(0.8, 0.2)
-                      << QPointF(0.8, 0.8)
-                      << QPointF(0.2, 0.8);
+    const QString normalGrip = i18n("Hold the stylus the way you normally draw.");
+
+    m_steps << Step{QPointF(0.5, 0.5), normalGrip, false}
+            << Step{QPointF(0.5, 0.5), i18n("Lean the top of the stylus to the LEFT, as far as is comfortable."), true}
+            << Step{QPointF(0.5, 0.5), i18n("Lean the top of the stylus to the RIGHT, as far as is comfortable."), true}
+            << Step{QPointF(0.5, 0.5), i18n("Lean the top of the stylus TOWARDS YOU (the bottom of the screen)."), true}
+            << Step{QPointF(0.5, 0.5), i18n("Lean the top of the stylus AWAY FROM YOU (the top of the screen)."), true}
+            << Step{QPointF(0.2, 0.2), normalGrip, false}
+            << Step{QPointF(0.8, 0.2), normalGrip, false}
+            << Step{QPointF(0.8, 0.8), normalGrip, false}
+            << Step{QPointF(0.2, 0.8), normalGrip, false};
 
     m_btnRestart = new QPushButton(i18n("Restart"), this);
     connect(m_btnRestart, SIGNAL(clicked()), SLOT(slotRestart()));
@@ -47,20 +64,25 @@ KisDlgTabletOffsetCalibration::~KisDlgTabletOffsetCalibration()
 {
 }
 
-QPointF KisDlgTabletOffsetCalibration::offset() const
+KisTabletPositionCorrection KisDlgTabletOffsetCalibration::correction() const
 {
-    return m_offset;
+    return m_correction;
+}
+
+bool KisDlgTabletOffsetCalibration::tiltMeasured() const
+{
+    return m_tiltMeasured;
 }
 
 QPointF KisDlgTabletOffsetCalibration::targetPosition(int index) const
 {
-    const QPointF &relative = m_relativeTargets[index];
+    const QPointF &relative = m_steps[index].relativeTarget;
     return QPointF(relative.x() * width(), relative.y() * height());
 }
 
 void KisDlgTabletOffsetCalibration::slotRestart()
 {
-    m_measuredDeltas.clear();
+    m_samples.clear();
     m_message.clear();
     update();
 }
@@ -94,6 +116,16 @@ void KisDlgTabletOffsetCalibration::tabletEvent(QTabletEvent *event)
     const QPointF pos = event->posF();
 #endif
 
+    const QPointF tilt(event->xTilt(), event->yTilt());
+
+    if (event->type() == QEvent::TabletMove || event->type() == QEvent::TabletPress) {
+        m_currentTilt = tilt;
+        if (tiltAngle(tilt) > tiltReportedThreshold) {
+            m_tiltReported = true;
+        }
+        update();
+    }
+
     // let the stylus press the buttons: the event will be
     // converted into a mouse click by Qt
     if (event->type() != QEvent::TabletPress || childAt(pos.toPoint())) {
@@ -103,8 +135,8 @@ void KisDlgTabletOffsetCalibration::tabletEvent(QTabletEvent *event)
 
     event->accept();
 
-    const int index = m_measuredDeltas.size();
-    if (index >= m_relativeTargets.size()) return;
+    const int index = m_samples.size();
+    if (index >= m_steps.size()) return;
 
     const QPointF delta = targetPosition(index) - pos;
     const qreal maxAllowedDeviation =
@@ -116,15 +148,23 @@ void KisDlgTabletOffsetCalibration::tabletEvent(QTabletEvent *event)
         return;
     }
 
-    m_message.clear();
-    m_measuredDeltas.append(delta);
+    // if the stylus reports tilt at all, make sure the user actually leaned it
+    if (m_steps[index].requiresLean && m_tiltReported && tiltAngle(tilt) < minLeanAngle) {
+        m_message = i18n("The stylus was held almost upright, please lean it more and tap again.");
+        update();
+        return;
+    }
 
-    if (m_measuredDeltas.size() == m_relativeTargets.size()) {
-        QPointF sum;
-        Q_FOREACH (const QPointF &d, m_measuredDeltas) {
-            sum += d;
-        }
-        m_offset = sum / m_measuredDeltas.size();
+    m_message.clear();
+
+    KisTabletPositionCorrection::Sample sample;
+    sample.delta = delta;
+    sample.xTilt = tilt.x();
+    sample.yTilt = tilt.y();
+    m_samples.append(sample);
+
+    if (m_samples.size() == m_steps.size()) {
+        m_correction = KisTabletPositionCorrection::fit(m_samples, &m_tiltMeasured);
         accept();
         return;
     }
@@ -140,20 +180,37 @@ void KisDlgTabletOffsetCalibration::paintEvent(QPaintEvent *event)
     painter.setRenderHint(QPainter::Antialiasing);
     painter.fillRect(rect(), palette().window());
 
-    const int currentIndex = m_measuredDeltas.size();
+    const int currentIndex = qMin(m_samples.size(), m_steps.size() - 1);
 
-    const QString instructions =
-        i18n("Tap the center of the crosshair with the tip of your stylus (%1 of %2).\n"
-             "Hold the stylus the way you normally draw.",
-             qMin(currentIndex + 1, m_relativeTargets.size()),
-             m_relativeTargets.size());
+    QString instructions =
+        i18n("Tap the center of the crosshair with the tip of your stylus (%1 of %2).",
+             currentIndex + 1, m_steps.size());
+    instructions += "\n" + m_steps[currentIndex].instruction;
+
+    if (m_tiltReported) {
+        instructions += "\n\n" + i18n("Current stylus tilt: %1°", qRound(tiltAngle(m_currentTilt)));
+    }
+
+    if (!m_message.isEmpty()) {
+        instructions += "\n\n" + m_message;
+    }
+
+    QFont font = painter.font();
+    font.setPointSizeF(font.pointSizeF() * 1.3);
+    painter.setFont(font);
 
     const QRect textRect = rect().adjusted(20, 20, -20, -20);
     painter.setPen(palette().windowText().color());
-    painter.drawText(textRect, Qt::AlignHCenter | Qt::AlignTop | Qt::TextWordWrap,
-                     m_message.isEmpty() ? instructions : instructions + "\n\n" + m_message);
+    painter.drawText(textRect, Qt::AlignHCenter | Qt::AlignTop | Qt::TextWordWrap, instructions);
 
-    if (currentIndex >= m_relativeTargets.size()) return;
+    // mark the positions which are already done
+    QColor doneColor = palette().windowText().color();
+    doneColor.setAlphaF(0.3);
+    painter.setPen(QPen(doneColor, 1));
+    for (int i = 0; i < m_samples.size(); i++) {
+        const QPointF done = targetPosition(i);
+        painter.drawEllipse(done, crosshairSize / 3, crosshairSize / 3);
+    }
 
     const QPointF target = targetPosition(currentIndex);
 
@@ -162,13 +219,4 @@ void KisDlgTabletOffsetCalibration::paintEvent(QPaintEvent *event)
     painter.drawLine(target - QPointF(crosshairSize, 0), target + QPointF(crosshairSize, 0));
     painter.drawLine(target - QPointF(0, crosshairSize), target + QPointF(0, crosshairSize));
     painter.drawEllipse(target, crosshairSize / 3, crosshairSize / 3);
-
-    // mark the targets which are already done
-    QColor doneColor = palette().windowText().color();
-    doneColor.setAlphaF(0.3);
-    painter.setPen(QPen(doneColor, 1));
-    for (int i = 0; i < currentIndex; i++) {
-        const QPointF done = targetPosition(i);
-        painter.drawEllipse(done, crosshairSize / 3, crosshairSize / 3);
-    }
 }

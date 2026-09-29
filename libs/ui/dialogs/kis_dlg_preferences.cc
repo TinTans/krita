@@ -1868,20 +1868,44 @@ TabletSettingsTab::TabletSettingsTab(QWidget* parent, const char* name): QWidget
     m_page->tiltDirectionOffsetAngle->setPrefix(i18n("Pen tilt direction offset: "));
     m_page->tiltDirectionOffsetAngle->setFlipOptionsMode(KisAngleSelector::FlipOptionsMode_MenuButton);
 
-    const QPointF tabletOffset = cfg.tabletPositionOffset();
-    m_page->dblTabletOffsetX->setValue(tabletOffset.x());
-    m_page->dblTabletOffsetY->setValue(tabletOffset.y());
+    m_tabletCorrection = KisTabletPositionCorrection::fromConfig();
+    m_page->dblTabletOffsetX->setValue(m_tabletCorrection.offset().x());
+    m_page->dblTabletOffsetY->setValue(m_tabletCorrection.offset().y());
+    m_page->chkTabletTiltCompensation->setChecked(m_tabletCorrection.tiltCompensationEnabled());
+    updateTabletTiltInfo();
     connect(m_page->btnCalibrateTabletOffset, SIGNAL(clicked()), SLOT(slotCalibrateTabletOffset()));
     connect(m_page->btnResetTabletOffset, SIGNAL(clicked()), SLOT(slotResetTabletOffset()));
 }
 
+KisTabletPositionCorrection TabletSettingsTab::currentTabletCorrection() const
+{
+    KisTabletPositionCorrection result = m_tabletCorrection;
+    result.setOffset(QPointF(m_page->dblTabletOffsetX->value(),
+                             m_page->dblTabletOffsetY->value()));
+    result.setTiltCompensationEnabled(m_page->chkTabletTiltCompensation->isChecked());
+    return result;
+}
+
+void TabletSettingsTab::updateTabletTiltInfo()
+{
+    const bool hasModel = m_tabletCorrection.hasTiltModel();
+    m_page->chkTabletTiltCompensation->setEnabled(hasModel);
+    if (!hasModel) {
+        m_page->chkTabletTiltCompensation->setChecked(false);
+        m_page->lblTabletTiltInfo->setText(
+            i18n("Run the calibration to measure how tilting the stylus moves the detected point."));
+    } else {
+        m_page->lblTabletTiltInfo->setText(
+            i18n("Measured position sensor distance from the nib: %1 px",
+                 QString::number(m_tabletCorrection.sensorDistance(), 'f', 1)));
+    }
+}
+
 void TabletSettingsTab::slotTabletTest()
 {
-    // use the offset currently entered in the dialog, so that it can be
+    // use the correction currently set up in the page, so that it can be
     // tried out before being saved
-    const QPointF offset(m_page->dblTabletOffsetX->value(),
-                         m_page->dblTabletOffsetY->value());
-    TabletTestDialog tabletTestDialog(this, offset);
+    TabletTestDialog tabletTestDialog(this, currentTabletCorrection());
     tabletTestDialog.exec();
 }
 
@@ -1889,16 +1913,25 @@ void TabletSettingsTab::slotCalibrateTabletOffset()
 {
     KisDlgTabletOffsetCalibration dlg(this);
     if (dlg.exec() == QDialog::Accepted) {
-        m_page->dblTabletOffsetX->setValue(dlg.offset().x());
-        m_page->dblTabletOffsetY->setValue(dlg.offset().y());
+        m_tabletCorrection = dlg.correction();
+        m_page->dblTabletOffsetX->setValue(m_tabletCorrection.offset().x());
+        m_page->dblTabletOffsetY->setValue(m_tabletCorrection.offset().y());
+        updateTabletTiltInfo();
+        m_page->chkTabletTiltCompensation->setChecked(dlg.tiltMeasured());
+
+        if (!dlg.tiltMeasured()) {
+            m_page->lblTabletTiltInfo->setText(
+                i18n("The stylus did not report enough tilt, so only a fixed offset was measured."));
+        }
     }
 }
 
 void TabletSettingsTab::slotResetTabletOffset()
 {
-    const QPointF defaultOffset = KisConfig(true).tabletPositionOffset(true);
-    m_page->dblTabletOffsetX->setValue(defaultOffset.x());
-    m_page->dblTabletOffsetY->setValue(defaultOffset.y());
+    m_tabletCorrection = KisTabletPositionCorrection::fromConfig(true);
+    m_page->dblTabletOffsetX->setValue(m_tabletCorrection.offset().x());
+    m_page->dblTabletOffsetY->setValue(m_tabletCorrection.offset().y());
+    updateTabletTiltInfo();
 }
 
 #ifdef Q_OS_WIN
@@ -3242,8 +3275,7 @@ bool KisDlgPreferences::editPreferences(std::optional<PageDesc>page)
         cfg.writeEntry<int>("speedValueSmoothing", m_tabletSettings->m_page->intBrushSpeedSmoothing->value());
         // the angle is saved in clockwise direction to be consistent with Drawing Angle, so negate
         cfg.writeEntry<int>("tiltDirectionOffset", -m_tabletSettings->m_page->tiltDirectionOffsetAngle->angle());
-        cfg.setTabletPositionOffset(QPointF(m_tabletSettings->m_page->dblTabletOffsetX->value(),
-                                            m_tabletSettings->m_page->dblTabletOffsetY->value()));
+        m_tabletSettings->currentTabletCorrection().saveToConfig(cfg);
 
         m_performanceSettings->save();
 
