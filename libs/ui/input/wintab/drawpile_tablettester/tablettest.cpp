@@ -19,6 +19,11 @@ TabletTester::TabletTester(QWidget *parent)
 
 }
 
+void TabletTester::setPositionOffset(const QPointF &offset)
+{
+    m_positionOffset = offset;
+}
+
 QSize TabletTester::sizeHint() const
 {
     return QSize(500, 200);
@@ -54,6 +59,17 @@ void TabletTester::paintEvent(QPaintEvent *e)
     if(!m_tabletPath.isEmpty()) {
         p.setPen(QPen(Qt::blue, 2));
         p.drawPolyline(m_tabletPath);
+    }
+
+    // Mark where the stylus is reported (after the offset), so that
+    // it can be compared with the actual position of the nib
+    if (m_hasTabletPos) {
+        const qreal size = 12.0;
+        p.setRenderHint(QPainter::Antialiasing);
+        p.setPen(QPen(Qt::black, 1));
+        p.drawLine(m_lastTabletPos - QPointF(size, 0), m_lastTabletPos + QPointF(size, 0));
+        p.drawLine(m_lastTabletPos - QPointF(0, size), m_lastTabletPos + QPointF(0, size));
+        p.drawEllipse(m_lastTabletPos, size / 3, size / 3);
     }
 }
 
@@ -118,11 +134,17 @@ void TabletTester::tabletEvent(QTabletEvent *e)
             break;
     }
 
-    const qreal speed = m_tabletSpeedSmoother.getNextSpeed(e->posF(), e->timestamp());
+#if (QT_VERSION < QT_VERSION_CHECK(6, 0, 0))
+    const QPointF pos = e->posF() + m_positionOffset;
+#else
+    const QPointF pos = e->position() + m_positionOffset;
+#endif
+
+    const qreal speed = m_tabletSpeedSmoother.getNextSpeed(pos, e->timestamp());
 
     msg += QString(" X=%1 Y=%2 B=%3 P=%4% TX=%6 TY=%7 S=%9")
-        .arg(e->posF().x(), 0, 'f', 2)
-        .arg(e->posF().y(), 0, 'f', 2)
+        .arg(pos.x(), 0, 'f', 2)
+        .arg(pos.y(), 0, 'f', 2)
         .arg(static_cast<int>(e->buttons()))
         .arg(e->pressure()*100, 0, 'f', 1)
         .arg(e->xTilt())
@@ -133,12 +155,15 @@ void TabletTester::tabletEvent(QTabletEvent *e)
     if(e->type() == QEvent::TabletMove) {
         if(m_tabletDown) {
             msg += " (DRAW)";
-            m_tabletPath << e->pos();
-            update();
+            m_tabletPath << pos.toPoint();
         } else {
             msg += " (HOVER)";
         }
     }
+
+    m_lastTabletPos = pos;
+    m_hasTabletPos = true;
+    update();
 
     Q_EMIT eventReport(msg);
 }

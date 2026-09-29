@@ -12,7 +12,7 @@
 
 #include <QTabletEvent>
 
-TabletTestDialog::TabletTestDialog(QWidget *parent)
+TabletTestDialog::TabletTestDialog(QWidget *parent, const QPointF &positionOffset)
     : KoDialog(parent, Qt::Dialog)
 {
     setCaption(i18n("Tablet Tester"));
@@ -24,6 +24,7 @@ TabletTestDialog::TabletTestDialog(QWidget *parent)
     qApp->installEventFilter(this);
     // Hack to work around extreme lag w/ S Pen on Android. Unless the focus is set on the tablet tester itself, pen input will appear to lag.
     m_ui->tablettest->setFocus();
+    m_ui->tablettest->setPositionOffset(positionOffset);
 
     m_ui->logView->appendPlainText(
                 "## Legend:\n"
@@ -33,6 +34,13 @@ TabletTestDialog::TabletTestDialog(QWidget *parent)
                 "# TX,TY - tilt\n"
                 "# S - speed\n"
                 "\n");
+
+    if (!positionOffset.isNull()) {
+        m_ui->logView->appendPlainText(
+                    QString("# Stylus position offset: X=%1 Y=%2 (applied to the coordinates)\n")
+                    .arg(positionOffset.x(), 0, 'f', 1)
+                    .arg(positionOffset.y(), 0, 'f', 1));
+    }
 }
 
 TabletTestDialog::~TabletTestDialog()

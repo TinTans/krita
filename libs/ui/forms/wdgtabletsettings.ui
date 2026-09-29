@@ -349,14 +349,17 @@
         </item>
        </layout>
       </item>
+      <item row="3" column="1">
+       <widget class="QPushButton" name="btnTabletTest">
+        <property name="toolTip">
+         <string>Try out the stylus with the offset entered above applied</string>
+        </property>
+        <property name="text">
+         <string>Open Tablet Tester...</string>
+        </property>
+       </widget>
+      </item>
      </layout>
-    </widget>
-   </item>
-   <item>
-    <widget class="QPushButton" name="btnTabletTest">
-     <property name="text">
-      <string>Open Tablet Tester...</string>
-     </property>
     </widget>
    </item>
    <item>

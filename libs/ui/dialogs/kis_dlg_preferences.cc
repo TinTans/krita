@@ -1877,7 +1877,11 @@ TabletSettingsTab::TabletSettingsTab(QWidget* parent, const char* name): QWidget
 
 void TabletSettingsTab::slotTabletTest()
 {
-    TabletTestDialog tabletTestDialog(this);
+    // use the offset currently entered in the dialog, so that it can be
+    // tried out before being saved
+    const QPointF offset(m_page->dblTabletOffsetX->value(),
+                         m_page->dblTabletOffsetY->value());
+    TabletTestDialog tabletTestDialog(this, offset);
     tabletTestDialog.exec();
 }
 

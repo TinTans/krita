@@ -16,7 +16,7 @@ class TabletTestDialog : public KoDialog
 {
     Q_OBJECT
 public:
-    TabletTestDialog(QWidget *parent=nullptr);
+    TabletTestDialog(QWidget *parent=nullptr, const QPointF &positionOffset = QPointF());
     ~TabletTestDialog();
     bool eventFilter(QObject *watched, QEvent *event) override;
 

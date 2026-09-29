@@ -17,6 +17,9 @@ class TabletTester : public QWidget {
 public:
     TabletTester(QWidget *parent=nullptr);
 
+    /// offset added to the stylus position, same as the canvas does
+    void setPositionOffset(const QPointF &offset);
+
 public Q_SLOTS:
     void clear();
 
@@ -38,6 +41,9 @@ private:
 
     bool m_mouseDown;
     bool m_tabletDown;
+    QPointF m_positionOffset;
+    QPointF m_lastTabletPos;
+    bool m_hasTabletPos {false};
     KisSpeedSmoother m_tabletSpeedSmoother;
     KisSpeedSmoother m_mouseSpeedSmoother;
 };
