@@ -1200,7 +1200,8 @@ QWidget *NodeDelegate::createEditor(QWidget *parent, const QStyleOptionViewItem&
     // #400357 do not override QAbstractItemDelegate::setEditorData to update editor's text
     // because replacing the text while user type is confusing
     const QString &text = index.data(Qt::DisplayRole).toString();
-    d->edit = new QLineEdit(text, parent);
+    QLineEdit *lineEdit = new QLineEdit(text, parent);
+    d->edit = lineEdit;
     d->edit->setFocusPolicy(Qt::StrongFocus);
     d->edit->installEventFilter(const_cast<NodeDelegate*>(this)); //hack?
 
@@ -1209,7 +1210,7 @@ QWidget *NodeDelegate::createEditor(QWidget *parent, const QStyleOptionViewItem&
     // the on-screen keyboard (Qt only requests it when the focused widget is
     // tapped). Tapping the editor would deselect the name, so request the
     // keyboard explicitly once the editor is shown and focused.
-    QPointer<QLineEdit> edit = d->edit;
+    QPointer<QLineEdit> edit = lineEdit;
     QTimer::singleShot(0, edit, [edit]() {
         if (!edit) return;
         edit->setFocus(Qt::OtherFocusReason);
