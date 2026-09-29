@@ -153,6 +153,15 @@ jobs:
           path: /mnt/ccache
           key: ccache-android-arm64-${{ github.run_id }}
 
+      # Debug APKs are signed with ~/.android/debug.keystore, which would
+      # otherwise be generated anew on every runner. A different signature
+      # means Android refuses to install the new APK over the old one, so
+      # always sign with the same (test-only) key from the repository.
+      - name: Install fixed debug signing key
+        run: |
+          mkdir -p ~/.android
+          cp krita/.github/ci/debug.keystore ~/.android/debug.keystore
+
       - name: Package APK
         working-directory: krita
         run: |
