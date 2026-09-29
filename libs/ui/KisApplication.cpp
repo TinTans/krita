@@ -128,6 +128,7 @@
 #include <KisPlatformPluginInterfaceFactory.h>
 
 #include <config-qt-patches-present.h>
+#include "input/KisTabletPositionCorrector.h"
 #include <config-use-surface-color-management-api.h>
 
 #if KRITA_USE_SURFACE_COLOR_MANAGEMENT_API
@@ -652,6 +653,10 @@ bool KisApplication::start(const KisApplicationArguments &args)
     KisConfigNotifier *cfgNotifier = KisConfigNotifier::instance();
     connect(cfgNotifier, &KisConfigNotifier::sigLongPressChanged, this, &KisApplication::slotSetLongPress);
     slotSetLongPress(cfg.longPressEnabled());
+
+    // Apply the user's stylus position offset / tilt correction to all
+    // tablet input (canvas and the rest of the UI)
+    KisTabletPositionCorrector::instance();
 
     // Xiaomi workaround: their stylus inexplicably inputs page up and down keys
     // when pressing stylus buttons. This flag causes the Android platform

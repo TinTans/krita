@@ -12,6 +12,7 @@
 #include <QVector>
 
 #include "input/KisTabletPositionCorrection.h"
+#include "input/KisTabletPositionCorrector.h"
 #include "kritaui_export.h"
 
 class QPushButton;
@@ -69,6 +70,9 @@ private:
 
     QPushButton *m_btnRestart {nullptr};
     QPushButton *m_btnCancel {nullptr};
+
+    // the calibration needs the raw (uncorrected) stylus positions
+    KisTabletPositionCorrector::SuspendGuard m_suspendCorrection;
 };
 
 #endif // KISDLGTABLETOFFSETCALIBRATION_H

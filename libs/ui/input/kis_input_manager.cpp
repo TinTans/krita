@@ -13,7 +13,6 @@
 #include <klocalizedstring.h>
 #include <QApplication>
 #include <QTouchEvent>
-#include <QTabletEvent>
 #include <QWidget>
 
 #include <KoToolManager.h>
@@ -54,44 +53,6 @@
 template <typename T>
 uint qHash(QPointer<T> value) {
     return reinterpret_cast<quintptr>(value.data());
-}
-
-namespace {
-
-/**
- * Shifts the position of a tablet event in-place. We cannot just
- * construct a new event, because the copy would lose its "spontaneous"
- * flag, which some tools rely on to tell real user input from synthetic
- * events. Positions are protected members, so they are accessed via
- * pointers-to-members taken through a derived class.
- */
-struct TabletEventPositionShifter : public QTabletEvent
-{
-    static void shift(QTabletEvent *event, const QPointF &offset)
-    {
-#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
-        QTabletEvent shifted(event->type(),
-                             event->pointingDevice(),
-                             event->position() + offset,
-                             event->globalPosition() + offset,
-                             event->pressure(),
-                             event->xTilt(),
-                             event->yTilt(),
-                             event->tangentialPressure(),
-                             event->rotation(),
-                             event->z(),
-                             event->modifiers(),
-                             event->button(),
-                             event->buttons());
-        shifted.setTimestamp(event->timestamp());
-        event->*(&TabletEventPositionShifter::m_points) = shifted.points();
-#else
-        event->*(&TabletEventPositionShifter::mPos) += offset;
-        event->*(&TabletEventPositionShifter::mGPos) += offset;
-#endif
-    }
-};
-
 }
 
 KisInputManager::KisInputManager(QObject *parent)
@@ -162,9 +123,6 @@ void KisInputManager::deregisterPopupWidget()
 
 void KisInputManager::slotConfigChanged()
 {
-    // reloaded (for the current screen orientation) on the next tablet event
-    d->tabletCorrectionOrientation = -1;
-
 #ifdef Q_OS_WIN
     d->ignoreHighFunctionKeys = KisConfig(true).ignoreHighFunctionKeys();
     d->fixShortcutMatcherModifiersState();
@@ -227,32 +185,6 @@ void KisInputManager::setupAsEventFilter(QObject *receiver)
 bool KisInputManager::eventFilter(QObject* object, QEvent* event)
 {
     if (object != d->eventsReceiver) return false;
-
-    if (event->type() == QEvent::TabletPress ||
-        event->type() == QEvent::TabletMove ||
-        event->type() == QEvent::TabletRelease) {
-
-        // the correction is calibrated separately for each screen orientation
-        const int orientation = KisTabletPositionCorrection::currentScreenOrientation();
-        if (orientation != d->tabletCorrectionOrientation) {
-            d->tabletPositionCorrection = KisTabletPositionCorrection::fromConfig(false, orientation);
-            d->tabletCorrectionOrientation = orientation;
-        }
-    }
-
-    if (!d->tabletPositionCorrection.isNull() &&
-        (event->type() == QEvent::TabletPress ||
-         event->type() == QEvent::TabletMove ||
-         event->type() == QEvent::TabletRelease)) {
-
-        QTabletEvent *tabletEvent = static_cast<QTabletEvent*>(event);
-        const QPointF correction =
-            d->tabletPositionCorrection.correctionFor(tabletEvent->xTilt(), tabletEvent->yTilt());
-
-        if (!correction.isNull()) {
-            TabletEventPositionShifter::shift(tabletEvent, correction);
-        }
-    }
 
     if (d->eventEater.eventFilter(object, event)) return false;
 

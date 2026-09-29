@@ -10,6 +10,7 @@
 
 #include <KoDialog.h>
 #include "input/KisTabletPositionCorrection.h"
+#include "input/KisTabletPositionCorrector.h"
 
 class Ui_TabletTest;
 
@@ -24,6 +25,9 @@ public:
 
 private:
     Ui_TabletTest *m_ui;
+
+    // the tester applies the correction being edited itself
+    KisTabletPositionCorrector::SuspendGuard m_suspendCorrection;
 
 };
 
