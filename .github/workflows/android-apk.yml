@@ -184,6 +184,12 @@ jobs:
           fi
           ls -la /mnt/wd/krita/_packaging
 
+      - name: Verify APK signature
+        run: |
+          APK=$(ls /mnt/wd/krita/_packaging/*.apk | head -1)
+          "$ANDROID_HOME/build-tools/${ANDROID_BUILD_TOOLS_VERSION}/apksigner" verify --verbose --print-certs "$APK"
+          sha256sum "$APK"
+
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
