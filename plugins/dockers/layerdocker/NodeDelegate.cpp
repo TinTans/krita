@@ -25,6 +25,9 @@
 #include <QStyleOptionViewItem>
 #include <QBitmap>
 #include <QToolTip>
+#include <QTimer>
+#include <QGuiApplication>
+#include <QInputMethod>
 
 #include <klocalizedstring.h>
 #include "kis_node_view_color_scheme.h"
@@ -1200,6 +1203,20 @@ QWidget *NodeDelegate::createEditor(QWidget *parent, const QStyleOptionViewItem&
     d->edit = new QLineEdit(text, parent);
     d->edit->setFocusPolicy(Qt::StrongFocus);
     d->edit->installEventFilter(const_cast<NodeDelegate*>(this)); //hack?
+
+#ifdef Q_OS_ANDROID
+    // The view focuses the editor programmatically, which doesn't bring up
+    // the on-screen keyboard (Qt only requests it when the focused widget is
+    // tapped). Tapping the editor would deselect the name, so request the
+    // keyboard explicitly once the editor is shown and focused.
+    QPointer<QLineEdit> edit = d->edit;
+    QTimer::singleShot(0, edit, [edit]() {
+        if (!edit) return;
+        edit->setFocus(Qt::OtherFocusReason);
+        QGuiApplication::inputMethod()->show();
+    });
+#endif
+
     return d->edit;
 }
 
