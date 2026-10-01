@@ -207,4 +207,56 @@ bool copyFileToTemporary(const QString &inputPath, QTemporaryFile &outputFile, Q
     return copyFileContents(inputPath, outputFile.fileName(), inputFile, outputFile, outErrorMessage);
 }
 
+QString displayNameForUri(const QString &uri)
+{
+    QString result;
+
+    QJniObject activity = QJniObject::callStaticObjectMethod("org/qtproject/qt5/android/QtNative",
+                                                             "activity",
+                                                             "()Landroid/app/Activity;");
+    QJniObject parsedUri = QJniObject::callStaticObjectMethod("android/net/Uri",
+                                                              "parse",
+                                                              "(Ljava/lang/String;)Landroid/net/Uri;",
+                                                              QJniObject::fromString(uri).object<jstring>());
+    clearJniException(QStringLiteral("parsing uri in displayNameForUri"));
+    if (!activity.isValid() || !parsedUri.isValid()) {
+        return result;
+    }
+
+    QJniObject resolver = activity.callObjectMethod("getContentResolver", "()Landroid/content/ContentResolver;");
+    clearJniException(QStringLiteral("getting content resolver in displayNameForUri"));
+    if (!resolver.isValid()) {
+        return result;
+    }
+
+    // query all columns, OpenableColumns.DISPLAY_NAME is "_display_name"
+    QJniObject cursor = resolver.callObjectMethod(
+        "query",
+        "(Landroid/net/Uri;[Ljava/lang/String;Ljava/lang/String;[Ljava/lang/String;Ljava/lang/String;)Landroid/database/Cursor;",
+        parsedUri.object(),
+        static_cast<jobject>(nullptr),
+        static_cast<jobject>(nullptr),
+        static_cast<jobject>(nullptr),
+        static_cast<jobject>(nullptr));
+    clearJniException(QStringLiteral("querying uri in displayNameForUri"));
+    if (!cursor.isValid()) {
+        return result;
+    }
+
+    if (cursor.callMethod<jboolean>("moveToFirst")) {
+        const jint index = cursor.callMethod<jint>("getColumnIndex",
+                                                   "(Ljava/lang/String;)I",
+                                                   QJniObject::fromString(QStringLiteral("_display_name")).object<jstring>());
+        if (index >= 0) {
+            result = cursor.callObjectMethod("getString", "(I)Ljava/lang/String;", index).toString();
+        }
+    }
+    clearJniException(QStringLiteral("reading cursor in displayNameForUri"));
+
+    cursor.callMethod<void>("close");
+    clearJniException(QStringLiteral("closing cursor in displayNameForUri"));
+
+    return result;
+}
+
 } // namespace KisAndroidUtils

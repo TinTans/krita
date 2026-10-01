@@ -187,6 +187,34 @@ public:
     }
 };
 
+namespace {
+
+/**
+ * The base name (without extension) of the document's file, e.g. "apple"
+ * for "apple.kra", used to suggest a name when saving or exporting.
+ *
+ * On Android, documents are content:// URIs whose path segments are opaque
+ * document ids, so the user-visible name is asked from the content provider.
+ */
+QString documentFileBaseName(const QString &path)
+{
+    if (path.isEmpty()) {
+        return QString();
+    }
+#ifdef Q_OS_ANDROID
+    if (path.startsWith(QLatin1String("content://"))) {
+        const QString displayName = KisAndroidUtils::displayNameForUri(path);
+        if (!displayName.isEmpty()) {
+            const int dot = displayName.lastIndexOf(QLatin1Char('.'));
+            return dot > 0 ? displayName.left(dot) : displayName;
+        }
+    }
+#endif
+    return QFileInfo(path).completeBaseName();
+}
+
+}
+
 class Q_DECL_HIDDEN KisMainWindow::Private
 {
 public:
@@ -1428,7 +1456,7 @@ bool KisMainWindow::saveDocument(KisDocument *document, bool saveas, bool isExpo
             // Use the location where we last exported to, if it's set, as the opening location for the file dialog
             QString proposedPath = QFileInfo(d->lastExportLocation).absolutePath();
             // If the document doesn't have a filename yet, use the title
-            QString proposedFileName = suggestedURL.isEmpty() ? document->documentInfo()->aboutInfo("title") :  QFileInfo(suggestedURL.toLocalFile()).completeBaseName();
+            QString proposedFileName = suggestedURL.isEmpty() ? document->documentInfo()->aboutInfo("title") : documentFileBaseName(document->path());
             // Use the last mimetype we exported to by default
             QString proposedMimeType =  d->lastExportedFormat.isEmpty() ? "" : d->lastExportedFormat;
             QString proposedExtension = KisMimeDatabase::suffixesForMimeType(proposedMimeType).first().remove("*,");
@@ -1459,13 +1487,13 @@ bool KisMainWindow::saveDocument(KisDocument *document, bool saveas, bool isExpo
 
             //For if the user picked All Files Supported as the default, where there would not be an extension
             if(default_mime_type == "all/mime"){
-                dialog.setDefaultDir(suggestedURL.isEmpty() ? proposedPath : proposedPath + "/" + QFileInfo(suggestedURL.toLocalFile()).completeBaseName(), true);
+                dialog.setDefaultDir(suggestedURL.isEmpty() ? proposedPath : proposedPath + "/" + documentFileBaseName(document->path()), true);
             }
 
             if (default_mime_type != "all/mime" && !default_mime_type.isEmpty()) {
                 QString proposedExtension = KisMimeDatabase::suffixesForMimeType(proposedMimeType).first().remove("*,");
                 //This line is responsible for setting filename, which also manipulates filters.
-                dialog.setDefaultDir(suggestedURL.isEmpty() ? proposedPath :  proposedPath + "/" + QFileInfo(suggestedURL.toLocalFile()).completeBaseName() + "." + proposedExtension, true);
+                dialog.setDefaultDir(suggestedURL.isEmpty() ? proposedPath :  proposedPath + "/" + documentFileBaseName(document->path()) + "." + proposedExtension, true);
             }
 
             if (!isExporting) {

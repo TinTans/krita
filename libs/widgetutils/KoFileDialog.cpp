@@ -95,7 +95,14 @@ void KoFileDialog::setDefaultDir(const QString &defaultDir, bool force)
             }
         }
         if (!QFileInfo(defaultDir).isDir()) {
+#ifdef Q_OS_ANDROID
+            // The directory may be a content:// URI, and the file doesn't
+            // exist yet, so QFileInfo (which goes through Qt's content file
+            // engine there) can't be relied on to extract the file name
+            d->proposedFileName = defaultDir.section(QLatin1Char('/'), -1);
+#else
             d->proposedFileName = QFileInfo(defaultDir).fileName();
+#endif
         }
     }
 }
@@ -285,7 +292,11 @@ QString KoFileDialog::filename()
             }
             d->fileDialog->selectNameFilter(selectedFilter);
 
-            const QString proposedFileBaseName = QFileInfo(d->proposedFileName).baseName();
+            // strip only the last extension, so that e.g. "my.drawing.kra"
+            // is proposed as "my.drawing.png"
+            const int extensionPos = d->proposedFileName.lastIndexOf(QLatin1Char('.'));
+            const QString proposedFileBaseName = extensionPos > 0 ? d->proposedFileName.left(extensionPos)
+                                                                  : d->proposedFileName;
             // HACK: discovered by looking into the code
             d->fileDialog->setWindowTitle(proposedFileBaseName.isEmpty() ? QString("Untitled" + extension)
                                                                          : proposedFileBaseName + extension);

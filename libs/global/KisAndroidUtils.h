@@ -45,6 +45,12 @@ copyFile(const QString &inputPath, const QString &outputPath, QString *outErrorM
 KRITAGLOBAL_EXPORT bool
 copyFileToTemporary(const QString &inputPath, QTemporaryFile &outputFile, QString *outErrorMessage = nullptr);
 
+// Returns the user-visible file name (e.g. "apple.kra") of a content:// URI,
+// as reported by its content provider. The path segments of such URIs are
+// opaque document ids, so QFileInfo can't be used for this. Returns an empty
+// string if the name can't be determined.
+KRITAGLOBAL_EXPORT QString displayNameForUri(const QString &uri);
+
 } // namespace KisAndroidUtils
 
 #endif // __KISANDROIDUTILS_H_
