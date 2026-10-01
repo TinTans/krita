@@ -24,6 +24,8 @@
 #include <QMenu>
 #include <QVariantAnimation>
 #include <QPointer>
+#include <QGuiApplication>
+#include <QInputMethod>
 
 #include <cmath>
 #include <utility>
@@ -82,7 +84,34 @@ public:
         m_rangeToggleHoverAnimation.setEndValue(1.0);
         m_rangeToggleHoverAnimation.setEasingCurve(QEasingCurve(QEasingCurve::InOutCubic));
         connect(&m_rangeToggleHoverAnimation, &QVariantAnimation::valueChanged, m_widgetRangeToggle, QOverload<>::of(&QLineEdit::update));
+
+#ifdef Q_OS_ANDROID
+        m_longPressTimer.setSingleShot(true);
+        connect(&m_longPressTimer, &QTimer::timeout, this, [this]() { triggerLongPress(); });
+#endif
     }
+
+#ifdef Q_OS_ANDROID
+    /**
+     * On touch/stylus devices, double taps happen easily by accident while
+     * adjusting the slider, and entering the edit mode then pops up the
+     * on-screen keyboard. So there taps (and double taps) always adjust the
+     * slider and a long press (holding the pointer still) enters the edit
+     * mode instead. The value changed by the press itself is reverted.
+     */
+    void triggerLongPress()
+    {
+        if (isEditModeActive() || !m_q->isEnabled()) {
+            return;
+        }
+        m_longPressTriggered = true;
+        m_isDragging = false;
+        setValue(m_valueBeforePress, m_blockUpdateSignalOnDrag);
+        Q_EMIT m_q->draggingFinished();
+        startEditing();
+        QGuiApplication::inputMethod()->show();
+    }
+#endif
 
     void startEditing()
     {
@@ -741,6 +770,13 @@ public:
                 const QPoint currentValuePosition = pointForValue(m_q->value());
                 m_relativeDraggingOffset = currentValuePosition.x() - e->x();
                 m_useRelativeDragging = (e->modifiers() & Qt::ShiftModifier);
+#ifdef Q_OS_ANDROID
+                // see triggerLongPress()
+                edit = false;
+                m_valueBeforePress = m_q->value();
+                m_longPressTriggered = false;
+                m_longPressTimer.start(qMax(400, QGuiApplication::styleHints()->mousePressAndHoldInterval()));
+#endif
                 if (edit) {
                     QTimer::singleShot(0, &m_startEditingSignalProxy, SLOT(start()));
                 } else {
@@ -757,6 +793,14 @@ public:
         if (!m_q->isEnabled()) {
             return false;
         }
+#ifdef Q_OS_ANDROID
+        m_longPressTimer.stop();
+        if (m_longPressTriggered) {
+            // the long press already reverted the value and started editing
+            m_longPressTriggered = false;
+            return false;
+        }
+#endif
         if (!isEditModeActive()) {
             // Releasing the right mouse button makes the lineedit enter
             // the edition mode if we are not editing
@@ -795,6 +839,13 @@ public:
         }
         if (!isEditModeActive()) {
             if (e->buttons() & Qt::LeftButton) {
+#ifdef Q_OS_ANDROID
+                // moving the pointer means dragging, not a long press
+                if (m_longPressTimer.isActive() &&
+                    (e->pos() - m_lastMousePressPosition).manhattanLength() > QGuiApplication::styleHints()->startDragDistance()) {
+                    m_longPressTimer.stop();
+                }
+#endif
                 m_isDragging = true;
                 // At this point we are dragging so record the position and set
                 // the value
@@ -949,6 +1000,11 @@ private:
     QVariantAnimation m_sliderAnimation;
     QVariantAnimation m_rangeToggleHoverAnimation;
     SignalToFunctionProxy m_startEditingSignalProxy;
+#ifdef Q_OS_ANDROID
+    QTimer m_longPressTimer;
+    ValueType m_valueBeforePress {static_cast<ValueType>(0)};
+    bool m_longPressTriggered {false};
+#endif
 
     enum SoftRangeViewMode
     {
